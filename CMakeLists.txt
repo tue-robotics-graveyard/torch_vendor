@@ -1,9 +1,19 @@
 cmake_minimum_required(VERSION 3.24.0)
-project(torch_vendor VERSION 0.0.1)
+project(torch_vendor VERSION 0.0.1) # LANGUAGES CXX CUDA)
 include(FetchContent)
 include(GNUInstallDirs)
 
 cmake_policy(SET CMP0135 NEW)
+
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+# Default to C11
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+endif()
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,23 +23,23 @@ cmake_policy(SET CMP0135 NEW)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-set(FETCHCONTENT_QUIET FALSE)
-FetchContent_Declare(
-  libtorch
-  URL https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.1%2Bcu121.zip
-  OVERRIDE_FIND_PACKAGE
-  DOWNLOAD_EXTRACT_TIMESTAMP
-)
-FetchContent_MakeAvailable(libtorch)
+#set(FETCHCONTENT_QUIET FALSE)
+#FetchContent_Declare(
+#  libtorch
+#  URL https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.2.0%2Bcu121.zip
+#  OVERRIDE_FIND_PACKAGE
+#  DOWNLOAD_EXTRACT_TIMESTAMP
+#)
+#FetchContent_MakeAvailable(libtorch)
 
-find_package(Torch REQUIRED PATHS ${libtorch_SOURCE_DIR} NO_DEFAULT_PATH)
-message(WARNING "Torch_FOUND: ${Torch_FOUND}")
-message(WARNING "TORCH_FOUND: ${TORCH_FOUND}")
-message(WARNING "TORCH_INCLUDE_DIRS: ${TORCH_INCLUDE_DIRS}")
-message(WARNING "TORCH_LIBRARIES: ${TORCH_LIBRARIES}")
-message(WARNING "TORCH_LIBRARY: ${TORCH_LIBRARY}")
-message(WARNING "libtorch_SOURCE_DIR: ${libtorch_SOURCE_DIR}")
-message(WARNING "libtorch_BINARY_DIR: ${libtorch_BINARY_DIR}")
+#find_package(Torch REQUIRED PATHS ${libtorch_SOURCE_DIR} NO_DEFAULT_PATH)
+#message(WARNING "Torch_FOUND: ${Torch_FOUND}")
+#message(WARNING "TORCH_FOUND: ${TORCH_FOUND}")
+#message(WARNING "TORCH_INCLUDE_DIRS: ${TORCH_INCLUDE_DIRS}")
+#message(WARNING "TORCH_LIBRARIES: ${TORCH_LIBRARIES}")
+#message(WARNING "TORCH_LIBRARY: ${TORCH_LIBRARY}")
+#message(WARNING "libtorch_SOURCE_DIR: ${libtorch_SOURCE_DIR}")
+#message(WARNING "libtorch_BINARY_DIR: ${libtorch_BINARY_DIR}")
 message(WARNING "CATKIN_PACKAGE_LIB_DESTINATION: ${CATKIN_PACKAGE_LIB_DESTINATION}")
 message(WARNING "CATKIN_GLOBAL_BIN_DESTINATION: ${CATKIN_GLOBAL_BIN_DESTINATION}")
 message(WARNING "CATKIN_PACKAGE_INCLUDE_DESTINATION: ${CATKIN_PACKAGE_INCLUDE_DESTINATION}")
@@ -38,9 +48,27 @@ message(WARNING "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 message(WARNING "CMAKE_INSTALL_NAME_DIR: ${CMAKE_INSTALL_NAME_DIR}")
 message(WARNING "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
+find_package (Python COMPONENTS Interpreter REQUIRED)
+message(WARNING "Python_EXECUTABLE: ${Python_EXECUTABLE}")
+execute_process(
+ COMMAND ${Python_EXECUTABLE} -c "import torch; from sys import stderr; print(torch.__path__[0]); print(f'{torch.__path__[0]}=', file=stderr)"
+ OUTPUT_VARIABLE TORCH_LIBRARY_PATH
+ OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+message(WARNING "TORCH_LIBRARY_PATH: ${TORCH_LIBRARY_PATH}")
+
+find_package(OpenCV REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common kdtree)
+set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
+find_package(Torch 2 REQUIRED
+  PATHS "${TORCH_LIBRARY_PATH}/share/cmake"
+)
+message(WARNING "TORCH_INCLUDE_DIRS: ${TORCH_INCLUDE_DIRS}")
+
 # Create target
-set(TARGET libtorch)
-add_library(${TARGET} SHARED IMPORTED)
+#set(TARGET libtorch)
+#add_library(${TARGET} SHARED IMPORTED)
 #target_sources(
 #    ${TARGET}
 #    PUBLIC
@@ -48,9 +76,9 @@ add_library(${TARGET} SHARED IMPORTED)
 #    PRIVATE
 #        ${CMAKE_CURRENT_BINARY_DIR}/botan_all.cpp
 #)
-target_include_directories(${TARGET} PUBLIC INTERFACE
-  $<BUILD_INTERFACE:${libtorch_SOURCE_DIR}/include>
-)
+#target_include_directories(${TARGET} PUBLIC INTERFACE
+#  $<BUILD_INTERFACE:${libtorch_SOURCE_DIR}/include>
+#)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
@@ -69,19 +97,19 @@ target_include_directories(${TARGET} PUBLIC INTERFACE
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-#catkin_package(
+catkin_package(
 #  INCLUDE_DIRS ${libtorch_SOURCE_DIR}/include/
-#  LIBRARIES "${TORCH_LIBRARIES}"
+  LIBRARIES "${TORCH_LIBRARIES}"
 #  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS TORCH
-#)
-find_package(catkin QUIET)
-if(catkin_FOUND)
-  catkin_package(
-    SKIP_CMAKE_CONFIG_GENERATION
-    SKIP_PKG_CONFIG_GENERATION
-  )
-endif()
+  DEPENDS PCL TORCH
+)
+#find_package(catkin QUIET)
+#if(catkin_FOUND)
+#  catkin_package(
+#    SKIP_CMAKE_CONFIG_GENERATION
+#    SKIP_PKG_CONFIG_GENERATION
+#  )
+#endif()
 
 ###########
 ## Build ##
@@ -177,21 +205,21 @@ include_directories(
 #  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 #)
 
-install(IMPORTED_RUNTIME_ARTIFACTS ${TARGET}
-  LIBRARY
-)
+#install(IMPORTED_RUNTIME_ARTIFACTS ${TARGET}
+#  LIBRARY
+#)
 
-install(DIRECTORY ${libtorch_SOURCE_DIR}/include/
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/torch_vendor
-)
+#install(DIRECTORY ${libtorch_SOURCE_DIR}/include/
+#  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/torch_vendor
+#)
 
-install(DIRECTORY ${libtorch_SOURCE_DIR}/lib/
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/torch_vendor
-)
+#install(DIRECTORY ${libtorch_SOURCE_DIR}/lib/
+#  DESTINATION ${CMAKE_INSTALL_LIBDIR}/torch_vendor
+#)
 
-install(DIRECTORY ${libtorch_SOURCE_DIR}/share/
-  DESTINATION share/torch_vendor
-)
+#install(DIRECTORY ${libtorch_SOURCE_DIR}/share/
+#  DESTINATION share/torch_vendor
+#)
 
 
 #############
